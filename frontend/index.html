@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>简历分析与岗位匹配</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; background: #f7f9fc; color: #1f2937; }
+    .container { max-width: 900px; margin: auto; background: #fff; padding: 24px; box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08); border-radius: 12px; }
+    h1 { margin-bottom: 8px; }
+    label { display: block; margin: 16px 0 8px; font-weight: 600; }
+    input, textarea, button { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #d1d5db; font-size: 14px; }
+    textarea { min-height: 160px; resize: vertical; }
+    button { background: #2563eb; color: #fff; border: none; cursor: pointer; margin-top: 12px; }
+    button:hover { background: #1d4ed8; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .result { white-space: pre-wrap; background: #f3f4f6; padding: 14px; margin-top: 18px; border-radius: 10px; border: 1px solid #e5e7eb; }
+    .note { color: #6b7280; font-size: 13px; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>简历分析与岗位匹配</h1>
+    <p>上传 PDF 简历后，输入岗位需求描述，系统将返回结构化解析结果与匹配度评分。</p>
+
+    <label for="resumeFile">选择简历 PDF 文件</label>
+    <input id="resumeFile" type="file" accept="application/pdf" />
+    <button id="uploadBtn">上传并解析简历</button>
+    <div class="note">解析结果将基于上传文件生成 resume_id，用于后续匹配。</div>
+
+    <label for="jobDescription">岗位需求描述</label>
+    <textarea id="jobDescription" placeholder="请输入招聘岗位的描述，例如：Python 后端、Flask、MySQL、Redis、RESTful API"></textarea>
+    <button id="matchBtn">计算匹配度</button>
+
+    <div class="result" id="output">等待操作...</div>
+  </div>
+
+  <script>
+    let currentResumeId = null;
+
+    document.getElementById('uploadBtn').addEventListener('click', async () => {
+      const fileInput = document.getElementById('resumeFile');
+      const file = fileInput.files[0];
+      if (!file) {
+        alert('请先选择 PDF 简历文件。');
+        return;
+      }
+
+      const form = new FormData();
+      form.append('resume', file);
+
+      const resp = await fetch('/api/upload', { method: 'POST', body: form });
+      const data = await resp.json();
+      if (!resp.ok) {
+        const prettyErr = JSON.stringify(data, null, 2).replace(/\\n/g, '\n');
+        document.getElementById('output').textContent = prettyErr;
+        return;
+      }
+      currentResumeId = data.resume_id;
+      const pretty = JSON.stringify(data, null, 2).replace(/\\n/g, '\n');
+      document.getElementById('output').textContent = pretty;
+    });
+
+    document.getElementById('matchBtn').addEventListener('click', async () => {
+      const jobDescription = document.getElementById('jobDescription').value.trim();
+      if (!jobDescription) {
+        alert('请填写岗位需求描述。');
+        return;
+      }
+      if (!currentResumeId) {
+        alert('请先上传并解析简历。');
+        return;
+      }
+
+      const body = { resume_id: currentResumeId, job_description: jobDescription };
+      const resp = await fetch('/api/match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await resp.json();
+      const pretty = JSON.stringify(data, null, 2).replace(/\\n/g, '\n');
+      document.getElementById('output').textContent = pretty;
+    });
+  </script>
+</body>
+</html>
