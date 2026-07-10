@@ -31,7 +31,7 @@ def homepage() -> HTMLResponse:
     return HTMLResponse(index_path.read_text(encoding="utf-8"))
 
 
-@app.post("/api/upload")
+@app.post("/api/upload/")
 async def upload_resume(resume: UploadFile = File(...)) -> JSONResponse:
     if not resume.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="仅支持 PDF 格式简历上传。")
@@ -50,7 +50,7 @@ async def upload_resume(resume: UploadFile = File(...)) -> JSONResponse:
     })
 
 
-@app.post("/api/match")
+@app.post("/api/match/")
 async def match_resume(
     job_description: Dict[str, str],
 ) -> JSONResponse:
@@ -88,7 +88,7 @@ async def match_resume(
     return JSONResponse({"result": result, "cached": False})
 
 
-@app.get("/api/resume/{resume_id}")
+@app.get("/api/resume/{resume_id}/")
 def get_resume(resume_id: str) -> JSONResponse:
     parsed = resume_cache.get(resume_id)
     if not parsed:
@@ -96,6 +96,6 @@ def get_resume(resume_id: str) -> JSONResponse:
     return JSONResponse(parsed)
 
 
-@app.get("/api/ping")
+@app.get("/api/ping/")
 def ping() -> Dict[str, str]:
     return {"status": "ok", "message": "服务正常运行"}
