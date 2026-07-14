@@ -1,8 +1,10 @@
 import json
+import os
 from pathlib import Path
 from typing import Dict, Optional
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -11,24 +13,34 @@ from app.parser import compute_hash, compute_match, parse_resume
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
 
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+
 app = FastAPI(
     title="AI 简历解析与匹配服务",
     description="支持 PDF 简历上传、关键信息抽取与岗位需求匹配评分的后端服务。",
     version="0.1.0",
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 resume_cache: Dict[str, Dict] = {}
 match_cache: Dict[str, Dict] = {}
 
-app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+if FRONTEND_DIR.exists():
+    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
-
-@app.get("/", response_class=HTMLResponse)
-def homepage() -> HTMLResponse:
-    index_path = FRONTEND_DIR / "index.html"
-    if not index_path.exists():
-        raise HTTPException(status_code=404, detail="前端页面未找到")
-    return HTMLResponse(index_path.read_text(encoding="utf-8"))
+    @app.get("/", response_class=HTMLResponse)
+    def homepage() -> HTMLResponse:
+        index_path = FRONTEND_DIR / "index.html"
+        if not index_path.exists():
+            raise HTTPException(status_code=404, detail="前端页面未找到")
+        return HTMLResponse(index_path.read_text(encoding="utf-8"))
 
 
 @app.post("/api/upload/")

@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <title>简历分析与岗位匹配</title>
+  <!-- Set Render backend URL here for production; leave empty for local dev -->
+  <meta name="api-base" content="">
   <style>
     body { font-family: Arial, sans-serif; margin: 24px; background: #f7f9fc; color: #1f2937; }
     .container { max-width: 900px; margin: auto; background: #fff; padding: 24px; box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08); border-radius: 12px; }
@@ -35,6 +37,23 @@
   </div>
 
   <script>
+    // ---------- API base URL ----------
+    // 本地开发：自动检测为 localhost，使用相对路径（空字符串）
+    // 生产环境（GitHub Pages）：使用下方硬编码的 Render 后端地址
+    var API_BASE = "";
+    (function() {
+      try {
+        var meta = document.querySelector('meta[name="api-base"]');
+        if (meta && meta.content) {
+          API_BASE = meta.content;
+        } else if (!/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(location.hostname)) {
+          // 非本地环境 → GitHub Pages，使用 Render 后端
+          // ⚠️ 部署前请替换为你的实际 Render URL
+          API_BASE = "https://YOUR-APP.onrender.com";
+        }
+      } catch(e) {}
+    })();
+
     let currentResumeId = null;
 
     document.getElementById('uploadBtn').addEventListener('click', async () => {
@@ -48,7 +67,7 @@
       const form = new FormData();
       form.append('resume', file);
 
-      const resp = await fetch('/api/upload', { method: 'POST', body: form });
+      const resp = await fetch(API_BASE + '/api/upload/', { method: 'POST', body: form });
       const data = await resp.json();
       if (!resp.ok) {
         const prettyErr = JSON.stringify(data, null, 2).replace(/\\n/g, '\n');
@@ -72,7 +91,7 @@
       }
 
       const body = { resume_id: currentResumeId, job_description: jobDescription };
-      const resp = await fetch('/api/match', {
+      const resp = await fetch(API_BASE + '/api/match/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
