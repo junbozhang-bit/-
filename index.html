@@ -275,16 +275,20 @@
         '<div class="info-item"><div class="info-label">姓名</div>' + infoValue(basic.name) + '</div>' +
         '<div class="info-item"><div class="info-label">电话</div>' + infoValue(basic.phone) + '</div>' +
         '<div class="info-item"><div class="info-label">邮箱</div>' + infoValue(basic.email) + '</div>' +
-        '<div class="info-item"><div class="info-label">地址</div>' + infoValue(basic.address) + '</div>';
+        '<div class="info-item"><div class="info-label">地址</div>' + infoValue(basic.address) + '</div>' +
+        '<div class="info-item"><div class="info-label">期望薪资</div>' + infoValue(basic.expected_salary) + '</div>';
 
       // Background
       var bgCard = document.getElementById('backgroundCard');
       var hasBg = bg.education || bg.work_years || (bg.projects && bg.projects.length > 0);
       bgCard.style.display = hasBg ? 'block' : 'none';
       if (hasBg) {
+        var wyDetail = bg.work_years_detail || '';
         document.getElementById('backgroundGrid').innerHTML =
           '<div class="info-item"><div class="info-label">学历</div>' + infoValue(bg.education) + '</div>' +
-          '<div class="info-item"><div class="info-label">工作年限</div>' + infoValue(bg.work_years) + '</div>';
+          '<div class="info-item"><div class="info-label">工作年限</div>' + infoValue(bg.work_years) +
+            (wyDetail ? '<div class="note" style="margin-top:4px;font-size:11px;">' + esc(wyDetail) + '</div>' : '') +
+          '</div>';
         var projectsBlock = document.getElementById('projectsBlock');
         if (bg.projects && bg.projects.length > 0) {
           projectsBlock.style.display = 'block';
@@ -310,11 +314,45 @@
         }
       }
 
+      // AI Analysis note
+      var aiAnalysis = parsed.ai_analysis || {};
+      var aiNote = aiAnalysis.note || '';
+      var aiConfidence = aiAnalysis.confidence || {};
+      var skillCats = aiAnalysis.skill_categories || {};
+      var primaryStack = aiAnalysis.primary_stack || [];
+
       // Keywords
       var kwCard = document.getElementById('keywordsCard');
       kwCard.style.display = keywords.length > 0 ? 'block' : 'none';
       if (keywords.length > 0) {
-        document.getElementById('keywordsTags').innerHTML = renderTags(keywords, '');
+        var kwHtml = renderTags(keywords, '');
+        // Prepend AI analysis note if available
+        if (aiNote) {
+          kwHtml = '<div class="note" style="margin-bottom:10px;color:#374151;font-size:13px;background:#eff6ff;padding:8px 12px;border-radius:8px;border-left:3px solid #2563eb;">🤖 <b>AI 分析：</b>' + esc(aiNote) + '</div>' + kwHtml;
+        }
+        document.getElementById('keywordsTags').innerHTML = kwHtml;
+      }
+
+      // Skill categories from AI
+      var skillCatKeys = Object.keys(skillCats);
+      if (skillCatKeys.length > 0) {
+        var catSection = document.getElementById('skillsBlock');
+        var catHtml = '';
+        skillCatKeys.forEach(function(cat) {
+          catHtml += '<div style="margin-top:6px;"><span style="font-size:12px;font-weight:700;color:#6b7280;">' + esc(cat) + '</span></div>';
+          catHtml += '<div class="tag-list" style="margin-top:4px;">' + renderTags(skillCats[cat], '') + '</div>';
+        });
+        // Append after existing skills text
+        var skillsEl = document.getElementById('skillsText');
+        if (skillsEl) {
+          skillsEl.innerHTML = (career.skills ? esc(career.skills) : '') + catHtml;
+        }
+      }
+
+      // Primary stack indicator
+      if (primaryStack.length > 0 && career.job_intention) {
+        var careerGrid = document.getElementById('careerGrid');
+        careerGrid.innerHTML += '<div class="info-item"><div class="info-label">核心技术方向</div><span class="info-value" style="font-size:13px;">' + esc(primaryStack.slice(0,3).join(' → ')) + '</span></div>';
       }
     }
 
@@ -328,6 +366,9 @@
       var matchedKeywords = result.matched_keywords || [];
       var jobKeywords = result.job_keywords || [];
       var unmatchedJob = jobKeywords.filter(function(k) { return matchedKeywords.indexOf(k) === -1; });
+      var breakdown = result.score_breakdown || {};
+      var analysis = result.analysis || '';
+      var scoreLevel = result.score_level || '';
 
       // Score circle
       var circle = document.getElementById('scoreCircle');
@@ -336,8 +377,56 @@
 
       document.getElementById('matchCount').textContent = result.matched_count || 0;
       document.getElementById('jobCount').textContent = result.job_keyword_count || jobKeywords.length;
-      document.getElementById('matchRate').textContent = score + '%';
+
+      // Score level badge
+      var levelBadge = scoreLevel ? ' <span style="background:#2563eb;color:#fff;padding:2px 10px;border-radius:12px;font-size:12px;margin-left:8px;">' + esc(scoreLevel) + '</span>' : '';
+      document.getElementById('matchRate').innerHTML = score + '%' + levelBadge;
       document.getElementById('cachedBadge').textContent = cached ? '(缓存命中)' : '';
+
+      // Score breakdown bars
+      var dims = [
+        { key: 'skill_match', label: '技能匹配', icon: '🛠️' },
+        { key: 'experience_match', label: '经验匹配', icon: '📋' },
+        { key: 'education_match', label: '学历匹配', icon: '🎓' },
+        { key: 'domain_match', label: '行业匹配', icon: '🏢' }
+      ];
+      var breakdownHtml = '<hr class="divider"><div class="section-label" style="margin-bottom:10px;">📊 各维度评分明细</div>';
+      dims.forEach(function(d) {
+        var bd = breakdown[d.key] || {};
+        var dimScore = bd.score || 0;
+        var dimWeight = bd.weight || 0;
+        var dimDetail = bd.detail || '';
+        var barColor = dimScore >= 70 ? '#16a34a' : dimScore >= 40 ? '#f59e0b' : '#ef4444';
+        breakdownHtml +=
+          '<div style="display:flex;align-items:center;margin-bottom:8px;gap:10px;">' +
+            '<span style="font-size:14px;width:80px;flex-shrink:0;">' + d.icon + ' ' + d.label + '</span>' +
+            '<div style="flex:1;background:#e5e7eb;border-radius:6px;height:14px;overflow:hidden;">' +
+              '<div style="width:' + dimScore + '%;height:100%;background:' + barColor + ';border-radius:6px;transition:width 0.5s;"></div>' +
+            '</div>' +
+            '<span style="font-size:13px;font-weight:700;width:50px;text-align:right;flex-shrink:0;">' + dimScore + '%</span>' +
+            '<span style="font-size:11px;color:#9ca3af;width:30px;text-align:right;flex-shrink:0;">×' + dimWeight + '%</span>' +
+          '</div>';
+        if (dimDetail) {
+          breakdownHtml += '<div style="font-size:11px;color:#6b7280;margin:-4px 0 8px 90px;">' + esc(dimDetail) + '</div>';
+        }
+      });
+
+      // AI analysis text
+      if (analysis) {
+        breakdownHtml +=
+          '<hr class="divider">' +
+          '<div class="section-label">💬 AI 综合评估</div>' +
+          '<div style="background:#fef3c7;padding:10px 14px;border-radius:8px;font-size:13px;line-height:1.7;color:#92400e;">' + esc(analysis) + '</div>';
+      }
+
+      // Inject breakdown into the match detail area
+      var detailEl = document.querySelector('.score-detail');
+      var existingBreakdown = document.getElementById('breakdownArea');
+      if (existingBreakdown) existingBreakdown.remove();
+      var breakdownDiv = document.createElement('div');
+      breakdownDiv.id = 'breakdownArea';
+      breakdownDiv.innerHTML = breakdownHtml;
+      if (detailEl) detailEl.appendChild(breakdownDiv);
 
       document.getElementById('matchedTags').innerHTML = renderTags(matchedKeywords, 'matched');
       document.getElementById('jobTags').innerHTML =
