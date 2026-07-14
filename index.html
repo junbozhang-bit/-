@@ -3,43 +3,159 @@
 <head>
   <meta charset="UTF-8" />
   <title>简历分析与岗位匹配</title>
-  <!-- Set Render backend URL here for production; leave empty for local dev -->
   <meta name="api-base" content="">
   <style>
-    body { font-family: Arial, sans-serif; margin: 24px; background: #f7f9fc; color: #1f2937; }
-    .container { max-width: 900px; margin: auto; background: #fff; padding: 24px; box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08); border-radius: 12px; }
-    h1 { margin-bottom: 8px; }
-    label { display: block; margin: 16px 0 8px; font-weight: 600; }
-    input, textarea, button { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #d1d5db; font-size: 14px; }
-    textarea { min-height: 160px; resize: vertical; }
-    button { background: #2563eb; color: #fff; border: none; cursor: pointer; margin-top: 12px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; color: #1f2937; padding: 24px 16px; }
+    .container { max-width: 960px; margin: auto; }
+
+    h1 { text-align: center; margin-bottom: 8px; font-size: 24px; }
+    .subtitle { text-align: center; color: #6b7280; margin-bottom: 24px; font-size: 14px; }
+
+    /* Upload & Input cards */
+    .card { background: #fff; border-radius: 12px; padding: 20px 24px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .card-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .card-title::before { content: ""; display: inline-block; width: 4px; height: 18px; background: #2563eb; border-radius: 2px; }
+
+    input, textarea { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid #d1d5db; font-size: 14px; outline: none; transition: border-color .2s; }
+    input:focus, textarea:focus { border-color: #2563eb; }
+    textarea { min-height: 120px; resize: vertical; }
+    input[type="file"] { padding: 8px; }
+
+    .btn-row { display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+    button { padding: 10px 24px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; transition: background .2s; }
     button:hover { background: #1d4ed8; }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-    .result { white-space: pre-wrap; background: #f3f4f6; padding: 14px; margin-top: 18px; border-radius: 10px; border: 1px solid #e5e7eb; }
-    .note { color: #6b7280; font-size: 13px; margin-top: 6px; }
+    button:disabled { background: #93c5fd; cursor: not-allowed; }
+    .btn-outline { background: #fff; color: #2563eb; border: 1px solid #2563eb; }
+    .btn-outline:hover { background: #eff6ff; }
+
+    .note { color: #6b7280; font-size: 12px; margin-top: 6px; }
+
+    /* ---- Result panels ---- */
+    .result-panel { display: none; }
+
+    /* Basic info grid */
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+    .info-item { background: #f9fafb; border-radius: 8px; padding: 12px 14px; }
+    .info-label { font-size: 12px; color: #6b7280; margin-bottom: 4px; }
+    .info-value { font-size: 15px; font-weight: 600; color: #1f2937; word-break: break-all; }
+    .info-value.empty { color: #d1d5db; font-weight: 400; font-style: italic; }
+
+    /* Section block */
+    .section-block { margin-top: 16px; }
+    .section-label { font-size: 13px; font-weight: 700; color: #374151; margin-bottom: 8px; }
+
+    .text-block { background: #f9fafb; border-radius: 8px; padding: 12px 14px; font-size: 13px; line-height: 1.7; white-space: pre-wrap; max-height: 300px; overflow-y: auto; color: #4b5563; }
+
+    /* Keywords tags */
+    .tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; background: #eff6ff; color: #1d4ed8; }
+    .tag.matched { background: #dcfce7; color: #16a34a; }
+    .tag.unmatched { background: #f3f4f6; color: #9ca3af; }
+    .tag.job { background: #fef3c7; color: #d97706; }
+
+    /* Match score */
+    .score-section { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; margin-bottom: 16px; }
+    .score-circle { width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 800; color: #fff; flex-shrink: 0; }
+    .score-circle.high { background: #16a34a; }
+    .score-circle.medium { background: #f59e0b; }
+    .score-circle.low { background: #ef4444; }
+
+    .score-detail { font-size: 14px; color: #6b7280; }
+    .score-detail span { font-weight: 700; color: #1f2937; }
+
+    .divider { border: none; border-top: 1px solid #e5e7eb; margin: 16px 0; }
+
+    /* Error state */
+    .error-box { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; padding: 12px 16px; border-radius: 8px; font-size: 13px; white-space: pre-wrap; }
+
+    @media (max-width: 600px) {
+      .info-grid { grid-template-columns: 1fr 1fr; }
+      .score-section { flex-direction: column; align-items: flex-start; }
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>简历分析与岗位匹配</h1>
-    <p>上传 PDF 简历后，输入岗位需求描述，系统将返回结构化解析结果与匹配度评分。</p>
+    <p class="subtitle">上传 PDF 简历 → 解析关键信息 → 输入岗位需求 → 匹配度评分</p>
 
-    <label for="resumeFile">选择简历 PDF 文件</label>
-    <input id="resumeFile" type="file" accept="application/pdf" />
-    <button id="uploadBtn">上传并解析简历</button>
-    <div class="note">解析结果将基于上传文件生成 resume_id，用于后续匹配。</div>
+    <!-- Step 1: Upload resume -->
+    <div class="card">
+      <div class="card-title">上传简历 PDF</div>
+      <input id="resumeFile" type="file" accept="application/pdf" />
+      <div class="btn-row">
+        <button id="uploadBtn">上传并解析</button>
+      </div>
+      <p class="note" id="uploadNote">支持 .pdf 格式，解析结果含基本信息、技能、项目经历等。</p>
+    </div>
 
-    <label for="jobDescription">岗位需求描述</label>
-    <textarea id="jobDescription" placeholder="请输入招聘岗位的描述，例如：Python 后端、Flask、MySQL、Redis、RESTful API"></textarea>
-    <button id="matchBtn">计算匹配度</button>
+    <!-- Step 2: Job description + match -->
+    <div class="card">
+      <div class="card-title">岗位需求描述</div>
+      <textarea id="jobDescription" placeholder="请输入招聘岗位的描述，例如：Python 后端开发，熟悉 Flask/Django，掌握 MySQL、Redis，有 RESTful API 开发经验。"></textarea>
+      <div class="btn-row">
+        <button id="matchBtn" disabled>计算匹配度</button>
+        <span class="note" id="matchHint" style="margin-top:0;display:flex;align-items:center;">请先上传简历</span>
+      </div>
+    </div>
 
-    <div class="result" id="output">等待操作...</div>
+    <!-- ====== 解析结果 ====== -->
+    <div class="result-panel" id="parsePanel">
+      <div class="card">
+        <div class="card-title">基本信息</div>
+        <div class="info-grid" id="basicInfoGrid"></div>
+      </div>
+
+      <div class="card" id="backgroundCard" style="display:none">
+        <div class="card-title">教育 / 工作背景</div>
+        <div class="info-grid" id="backgroundGrid"></div>
+        <div class="section-block" id="projectsBlock" style="display:none">
+          <div class="section-label">项目经历</div>
+          <div class="text-block" id="projectsText"></div>
+        </div>
+      </div>
+
+      <div class="card" id="careerCard" style="display:none">
+        <div class="card-title">职业技能</div>
+        <div class="info-grid" id="careerGrid"></div>
+        <div class="section-block" id="skillsBlock" style="display:none">
+          <div class="section-label">专业技能</div>
+          <div class="text-block" id="skillsText"></div>
+        </div>
+      </div>
+
+      <div class="card" id="keywordsCard" style="display:none">
+        <div class="card-title">简历关键词</div>
+        <div class="tag-list" id="keywordsTags"></div>
+      </div>
+    </div>
+
+    <!-- ====== 匹配结果 ====== -->
+    <div class="result-panel" id="matchPanel">
+      <div class="card">
+        <div class="card-title">匹配度评分</div>
+        <div class="score-section">
+          <div class="score-circle" id="scoreCircle">0</div>
+          <div class="score-detail">
+            <div>匹配关键词：<span id="matchCount">0</span> / <span id="jobCount">0</span></div>
+            <div>匹配率：<span id="matchRate">0%</span></div>
+            <div style="margin-top:4px;font-size:12px;color:#9ca3af;" id="cachedBadge"></div>
+          </div>
+        </div>
+        <div class="section-label">✅ 匹配关键词</div>
+        <div class="tag-list" id="matchedTags"></div>
+        <div class="section-label" style="margin-top:12px;">📋 岗位需求关键词</div>
+        <div class="tag-list" id="jobTags"></div>
+      </div>
+    </div>
+
+    <!-- Error display -->
+    <div id="errorBox" class="error-box" style="display:none"></div>
   </div>
 
   <script>
     // ---------- API base URL ----------
-    // 本地开发：自动检测为 localhost，使用相对路径（空字符串）
-    // 生产环境（GitHub Pages）：使用下方硬编码的 Render 后端地址
     var API_BASE = "";
     (function() {
       try {
@@ -47,59 +163,187 @@
         if (meta && meta.content) {
           API_BASE = meta.content;
         } else if (!/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(location.hostname)) {
-          // 非本地环境 → GitHub Pages，使用 Render 后端
-          // ⚠️ 部署前请替换为你的实际 Render URL
           API_BASE = "https://vx3ggz1h3y.onrender.com";
         }
       } catch(e) {}
     })();
 
-    let currentResumeId = null;
+    var currentResumeId = null;
+    var cachedParsed = null;
 
-    document.getElementById('uploadBtn').addEventListener('click', async () => {
-      const fileInput = document.getElementById('resumeFile');
-      const file = fileInput.files[0];
-      if (!file) {
-        alert('请先选择 PDF 简历文件。');
-        return;
+    // ── DOM refs ──
+    var uploadBtn = document.getElementById('uploadBtn');
+    var matchBtn = document.getElementById('matchBtn');
+    var matchHint = document.getElementById('matchHint');
+    var uploadNote = document.getElementById('uploadNote');
+    var errorBox = document.getElementById('errorBox');
+    var parsePanel = document.getElementById('parsePanel');
+    var matchPanel = document.getElementById('matchPanel');
+
+    // ── Helpers ──
+    function hideError() { errorBox.style.display = 'none'; }
+    function showError(msg) { errorBox.textContent = msg; errorBox.style.display = 'block'; }
+
+    function infoValue(val) {
+      if (val === null || val === undefined || val === '') {
+        return '<span class="info-value empty">未识别</span>';
       }
+      return '<span class="info-value">' + esc(val) + '</span>';
+    }
 
-      const form = new FormData();
-      form.append('resume', file);
+    function esc(s) {
+      s = String(s);
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
 
-      const resp = await fetch(API_BASE + '/api/upload/', { method: 'POST', body: form });
-      const data = await resp.json();
-      if (!resp.ok) {
-        const prettyErr = JSON.stringify(data, null, 2).replace(/\\n/g, '\n');
-        document.getElementById('output').textContent = prettyErr;
-        return;
+    function renderTags(list, cls) {
+      if (!list || list.length === 0) return '<span style="color:#9ca3af;font-size:12px;">无</span>';
+      return list.map(function(k) { return '<span class="tag ' + cls + '">' + esc(k) + '</span>'; }).join('');
+    }
+
+    // ── Upload ──
+    uploadBtn.addEventListener('click', async function() {
+      var fileInput = document.getElementById('resumeFile');
+      var file = fileInput.files[0];
+      if (!file) { showError('请先选择 PDF 简历文件。'); return; }
+      hideError();
+      uploadBtn.disabled = true;
+      uploadBtn.textContent = '解析中...';
+      uploadNote.textContent = '正在上传并解析 PDF，请稍候...';
+
+      try {
+        var form = new FormData();
+        form.append('resume', file);
+        var resp = await fetch(API_BASE + '/api/upload/', { method: 'POST', body: form });
+        var data = await resp.json();
+        if (!resp.ok) { showError(JSON.stringify(data, null, 2)); return; }
+
+        currentResumeId = data.resume_id;
+        cachedParsed = data.parsed;
+        matchBtn.disabled = false;
+        matchHint.textContent = '已就绪，可输入岗位描述后计算匹配度';
+        uploadNote.textContent = '✓ 解析完成（resume_id: ' + data.resume_id.substring(0, 12) + '...）';
+        renderParsed(data.parsed);
+      } catch(err) {
+        showError('请求失败：' + err.message);
+      } finally {
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = '上传并解析';
       }
-      currentResumeId = data.resume_id;
-      const pretty = JSON.stringify(data, null, 2).replace(/\\n/g, '\n');
-      document.getElementById('output').textContent = pretty;
     });
 
-    document.getElementById('matchBtn').addEventListener('click', async () => {
-      const jobDescription = document.getElementById('jobDescription').value.trim();
-      if (!jobDescription) {
-        alert('请填写岗位需求描述。');
-        return;
+    // ── Match ──
+    matchBtn.addEventListener('click', async function() {
+      var jobDesc = document.getElementById('jobDescription').value.trim();
+      if (!jobDesc) { showError('请填写岗位需求描述。'); return; }
+      if (!currentResumeId) { showError('请先上传并解析简历。'); return; }
+      hideError();
+      matchBtn.disabled = true;
+      matchBtn.textContent = '匹配中...';
+
+      try {
+        var body = { resume_id: currentResumeId, job_description: jobDesc };
+        var resp = await fetch(API_BASE + '/api/match/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        var data = await resp.json();
+        if (!resp.ok) { showError(JSON.stringify(data, null, 2)); return; }
+        renderMatch(data.result, data.cached);
+      } catch(err) {
+        showError('请求失败：' + err.message);
+      } finally {
+        matchBtn.disabled = false;
+        matchBtn.textContent = '计算匹配度';
       }
-      if (!currentResumeId) {
-        alert('请先上传并解析简历。');
-        return;
+    });
+
+    // ── Render: parsed resume ──
+    function renderParsed(parsed) {
+      parsePanel.style.display = 'block';
+      matchPanel.style.display = 'none';
+      hideError();
+
+      var basic = parsed.basic_info || {};
+      var bg = parsed.background || {};
+      var career = parsed.career || {};
+      var keywords = parsed.keywords || [];
+
+      // Basic info
+      document.getElementById('basicInfoGrid').innerHTML =
+        '<div class="info-item"><div class="info-label">姓名</div>' + infoValue(basic.name) + '</div>' +
+        '<div class="info-item"><div class="info-label">电话</div>' + infoValue(basic.phone) + '</div>' +
+        '<div class="info-item"><div class="info-label">邮箱</div>' + infoValue(basic.email) + '</div>' +
+        '<div class="info-item"><div class="info-label">地址</div>' + infoValue(basic.address) + '</div>';
+
+      // Background
+      var bgCard = document.getElementById('backgroundCard');
+      var hasBg = bg.education || bg.work_years || (bg.projects && bg.projects.length > 0);
+      bgCard.style.display = hasBg ? 'block' : 'none';
+      if (hasBg) {
+        document.getElementById('backgroundGrid').innerHTML =
+          '<div class="info-item"><div class="info-label">学历</div>' + infoValue(bg.education) + '</div>' +
+          '<div class="info-item"><div class="info-label">工作年限</div>' + infoValue(bg.work_years) + '</div>';
+        var projectsBlock = document.getElementById('projectsBlock');
+        if (bg.projects && bg.projects.length > 0) {
+          projectsBlock.style.display = 'block';
+          document.getElementById('projectsText').textContent = bg.projects.map(function(p) { return '• ' + p; }).join('\n\n');
+        } else {
+          projectsBlock.style.display = 'none';
+        }
       }
 
-      const body = { resume_id: currentResumeId, job_description: jobDescription };
-      const resp = await fetch(API_BASE + '/api/match/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const data = await resp.json();
-      const pretty = JSON.stringify(data, null, 2).replace(/\\n/g, '\n');
-      document.getElementById('output').textContent = pretty;
-    });
+      // Career
+      var careerCard = document.getElementById('careerCard');
+      var hasCareer = career.job_intention || career.skills;
+      careerCard.style.display = hasCareer ? 'block' : 'none';
+      if (hasCareer) {
+        document.getElementById('careerGrid').innerHTML =
+          '<div class="info-item"><div class="info-label">求职意向</div>' + infoValue(career.job_intention) + '</div>';
+        var skillsBlock = document.getElementById('skillsBlock');
+        if (career.skills) {
+          skillsBlock.style.display = 'block';
+          document.getElementById('skillsText').textContent = career.skills;
+        } else {
+          skillsBlock.style.display = 'none';
+        }
+      }
+
+      // Keywords
+      var kwCard = document.getElementById('keywordsCard');
+      kwCard.style.display = keywords.length > 0 ? 'block' : 'none';
+      if (keywords.length > 0) {
+        document.getElementById('keywordsTags').innerHTML = renderTags(keywords, '');
+      }
+    }
+
+    // ── Render: match result ──
+    function renderMatch(result, cached) {
+      parsePanel.style.display = 'none';
+      matchPanel.style.display = 'block';
+      hideError();
+
+      var score = result.match_score || 0;
+      var matchedKeywords = result.matched_keywords || [];
+      var jobKeywords = result.job_keywords || [];
+      var unmatchedJob = jobKeywords.filter(function(k) { return matchedKeywords.indexOf(k) === -1; });
+
+      // Score circle
+      var circle = document.getElementById('scoreCircle');
+      circle.textContent = score + '%';
+      circle.className = 'score-circle ' + (score >= 70 ? 'high' : score >= 40 ? 'medium' : 'low');
+
+      document.getElementById('matchCount').textContent = result.matched_count || 0;
+      document.getElementById('jobCount').textContent = result.job_keyword_count || jobKeywords.length;
+      document.getElementById('matchRate').textContent = score + '%';
+      document.getElementById('cachedBadge').textContent = cached ? '(缓存命中)' : '';
+
+      document.getElementById('matchedTags').innerHTML = renderTags(matchedKeywords, 'matched');
+      document.getElementById('jobTags').innerHTML =
+        renderTags(matchedKeywords, 'matched') +
+        renderTags(unmatchedJob, 'job');
+    }
   </script>
 </body>
 </html>
