@@ -6,12 +6,11 @@ from typing import Dict, Optional
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 
 from app.parser import compute_hash, compute_match, parse_resume
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-FRONTEND_DIR = BASE_DIR / "frontend"
+FRONTEND_DIR = BASE_DIR
 
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
@@ -32,15 +31,12 @@ app.add_middleware(
 resume_cache: Dict[str, Dict] = {}
 match_cache: Dict[str, Dict] = {}
 
-if FRONTEND_DIR.exists():
-    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
-
-    @app.get("/", response_class=HTMLResponse)
-    def homepage() -> HTMLResponse:
-        index_path = FRONTEND_DIR / "index.html"
-        if not index_path.exists():
-            raise HTTPException(status_code=404, detail="前端页面未找到")
-        return HTMLResponse(index_path.read_text(encoding="utf-8"))
+@app.get("/", response_class=HTMLResponse)
+def homepage() -> HTMLResponse:
+    index_path = FRONTEND_DIR / "index.html"
+    if not index_path.exists():
+        raise HTTPException(status_code=404, detail="前端页面未找到")
+    return HTMLResponse(index_path.read_text(encoding="utf-8"))
 
 
 @app.post("/api/upload/")
